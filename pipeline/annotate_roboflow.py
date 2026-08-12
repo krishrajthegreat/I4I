@@ -1,21 +1,23 @@
-"""
+""" 
 pipeline/annotate_roboflow.py
 ==============================
-Annotates already-uploaded images with full-image bounding boxes.
+Annotates already-uploaded images with full-image bounding boxes AND ensures
+a proper train/valid/test split is applied.
 
-Use this when images were uploaded without annotations to a Roboflow
-object-detection project. Each image gets one bounding box that covers
-the full image, labelled with the class name derived from the folder name
-(e.g., all images in dataset/train/conveyor/ get class = "conveyor").
+Strategy:
+  - All images are already in Roboflow (split=train from initial upload).
+  - This script:
+      1. Lists all images in the project.
+      2. Assigns splits (70/20/10) using the same deterministic seed as upload.
+      3. Annotates every image via save_annotation() (full-image VOC XML).
+      4. Re-uploads valid+test images using single_upload(split=...) so
+         Roboflow records the correct split for those images.
 
 Usage:
     .venv\\Scripts\\python.exe pipeline/annotate_roboflow.py
-
-Config:
-    Edit the CONFIG block below, or pass environment variables.
 """
 
-import os, sys, tempfile, time
+import os, sys, tempfile, time, math, random
 os.environ.setdefault("PYTHONUTF8", "1")
 
 try:
@@ -38,6 +40,10 @@ DATASET_DIR = Path("dataset/train")
 
 # Classes to annotate. Set to None to annotate ALL class folders.
 CLASSES_TO_ANNOTATE: list | None = ["conveyor"]
+
+# Same split ratios + seed as upload_to_roboflow.py
+SPLIT_RATIOS  = {"train": 0.70, "valid": 0.20, "test": 0.10}
+RANDOM_SEED   = 42
 # ---------------------------------------------------------------------------
 
 
@@ -80,6 +86,21 @@ def save_annotation_rest(image_id: str, annotation_name: str, annotation_xml: st
     return resp
 
 
+def assign_splits(images: list, ratios: dict, seed: int = 42) -> dict:
+    """Deterministic 70/20/10 split — same logic as upload_to_roboflow.py."""
+    imgs = images.copy()
+    random.seed(seed)
+    random.shuffle(imgs)
+    n = len(imgs)
+    n_train = math.ceil(n * ratios["train"])
+    n_valid = math.ceil(n * ratios["valid"])
+    return {
+        "train": set(x["id"] for x in imgs[:n_train]),
+        "valid": set(x["id"] for x in imgs[n_train:n_train + n_valid]),
+        "test":  set(x["id"] for x in imgs[n_train + n_valid:]),
+    }
+
+
 def annotate_class(proj, class_name: str) -> None:
     print(f"\n  Fetching image list for class '{class_name}' ...")
 
@@ -102,20 +123,38 @@ def annotate_class(proj, class_name: str) -> None:
     # Filter to this class by filename prefix
     class_images = [img for img in all_images
                     if img.get("name", "").startswith(f"img_{class_name}_")]
-    print(f"  Images matching class '{class_name}': {len(class_images)}")
+    print(f"  Images matching '{class_name}': {len(class_images)}")
 
     if not class_images:
-        print("  [WARN] No matching images found — check class name.")
+        print("  [WARN] No matching images found.")
         return
 
-    success, failed = 0, 0
+    # Assign splits (deterministic, same seed as upload script)
+    split_sets = assign_splits(class_images, SPLIT_RATIOS, RANDOM_SEED)
+    print(f"  Split: train={len(split_sets['train'])}  "
+          f"valid={len(split_sets['valid'])}  test={len(split_sets['test'])}")
+
+    # Also build local image map for re-uploading valid/test with correct split
+    cls_dir = DATASET_DIR / class_name
+    exts = {".jpg", ".jpeg", ".png", ".webp"}
+    local_files = {f.name: f for f in cls_dir.iterdir() if f.suffix.lower() in exts}
+
+    ann_ok = ann_fail = split_ok = split_fail = 0
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        for img in tqdm(class_images, desc=f"  Annotating {class_name}"):
+        for img in tqdm(class_images, desc=f"  Processing {class_name}"):
             image_id   = img["id"]
             image_name = img["name"]
             width      = img.get("width", 640)
             height     = img.get("height", 480)
+
+            # Determine this image's target split
+            if image_id in split_sets["valid"]:
+                target_split = "valid"
+            elif image_id in split_sets["test"]:
+                target_split = "test"
+            else:
+                target_split = "train"
 
             # Build VOC XML
             ann_name = image_name.rsplit(".", 1)[0] + ".xml"
@@ -123,7 +162,7 @@ def annotate_class(proj, class_name: str) -> None:
             xml_path = Path(tmpdir) / ann_name
             xml_path.write_text(xml, encoding="utf-8")
 
-            # Upload via SDK's save_annotation (handles auth/retries)
+            # --- Annotate (works for all images already in Roboflow) ---
             try:
                 proj.save_annotation(
                     annotation_path=str(xml_path),
@@ -131,23 +170,34 @@ def annotate_class(proj, class_name: str) -> None:
                     annotation_overwrite=True,
                     num_retry_uploads=2,
                 )
-                success += 1
+                ann_ok += 1
             except Exception as e:
-                # Fallback: try REST directly
-                try:
-                    resp = save_annotation_rest(image_id, ann_name, xml)
-                    if resp.status_code == 200:
-                        success += 1
-                    else:
-                        failed += 1
-                        tqdm.write(f"    [FAIL] {image_name}: {resp.status_code} {resp.text[:120]}")
-                except Exception as e2:
-                    failed += 1
-                    tqdm.write(f"    [ERR]  {image_name}: {e2}")
+                ann_fail += 1
+                tqdm.write(f"    [ANN-FAIL] {image_name}: {e}")
 
-            time.sleep(0.05)  # gentle rate-limit
+            # --- Re-upload valid/test images with correct split ---
+            if target_split in ("valid", "test"):
+                local_path = local_files.get(image_name)
+                if local_path:
+                    try:
+                        proj.single_upload(
+                            image_path=str(local_path),
+                            annotation_path=str(xml_path),
+                            split=target_split,
+                            batch_name=class_name,
+                            annotation_overwrite=True,
+                            num_retry_uploads=2,
+                        )
+                        split_ok += 1
+                    except Exception as e:
+                        split_fail += 1
+                        tqdm.write(f"    [SPLIT-FAIL] {image_name}: {e}")
 
-    print(f"  Result: {success} annotated, {failed} failed")
+            time.sleep(0.05)
+
+    print(f"  Annotations: {ann_ok} ok, {ann_fail} failed")
+    print(f"  Split fixes : {split_ok} ok, {split_fail} failed  "
+          f"(valid+test images re-uploaded with correct split)")
 
 
 def main():
