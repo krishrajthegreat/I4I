@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 pipeline/upload_to_roboflow.py
 ===============================
@@ -30,6 +31,9 @@ import sys
 from pathlib import Path
 
 # Load .env file if present (python-dotenv is listed in requirements.txt)
+import os
+os.environ.setdefault("PYTHONUTF8", "1")  # force UTF-8 stdout on Windows
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -39,12 +43,12 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # ⚙️  CONFIG — edit these before running
 # ---------------------------------------------------------------------------
-PROJECT_ID: str = "your-project-id"         # e.g. "machine-type-classifier"
+PROJECT_ID: str = "conveyer-kniz0"              # Roboflow project slug
 DATASET_DIR: Path = Path("dataset/train")   # root folder with per-class subfolders
 
 # Set to None to upload ALL class folders, or list specific ones:
 #   CLASSES_TO_UPLOAD = ["lathe", "cnc_milling", "table_saw"]
-CLASSES_TO_UPLOAD: list[str] | None = None
+CLASSES_TO_UPLOAD: list[str] | None = ["conveyor"]  # TEST: single-class upload
 
 PROJECT_LICENSE: str = "MIT"
 PROJECT_TYPE: str = "single-label-classification"
@@ -121,7 +125,7 @@ def main() -> None:
             project_license=PROJECT_LICENSE,
             project_type=PROJECT_TYPE,
         )
-        print(f"  ✓ {cls} done.")
+        print(f"  [DONE] {cls}")
 
     print("\n" + "=" * 65)
     print("Upload complete!")
