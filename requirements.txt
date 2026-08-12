@@ -30,6 +30,10 @@ tqdm>=4.66.0                     # progress bars
 scikit-learn>=1.5.0              # cosine_similarity, KMeans for diversity clustering
 matplotlib>=3.9.0                # calibration plots (Stage 4b)
 
+# ── Roboflow upload ───────────────────────────────────────────────────────────
+roboflow>=1.1.0                  # dataset upload to Roboflow (Stage 6 → cloud)
+python-dotenv>=1.0.0             # load ROBOFLOW_API_KEY from .env file
+
 # ─────────────────────────────────────────────────────────────────────────────
 # NOTE — PyTorch CUDA installation
 # ─────────────────────────────────────────────────────────────────────────────
