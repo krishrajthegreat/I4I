@@ -1,0 +1,26 @@
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Datasets and sample image folders (large binary files)
+dataset/
+good_bad/
+project.tm*/
+
+# Logs and scratch files
+logs/
+scratch/
+*.log
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

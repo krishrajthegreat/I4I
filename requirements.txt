@@ -1,0 +1,42 @@
+# Machine Type Classifier — Dataset Pipeline
+# Python 3.13 | NVIDIA GPU + CUDA | venv
+#
+# Install (Windows PowerShell):
+#   python -m venv .venv
+#   .venv\Scripts\Activate.ps1
+#   pip install -r requirements.txt
+
+# ── CLIP ─────────────────────────────────────────────────────────────────────
+open-clip-torch>=2.26.1          # OpenCLIP (mlfoundations/open_clip)
+
+# ── Scraper ──────────────────────────────────────────────────────────────────
+duckduckgo-search>=6.2.0         # DDGS image search (no API key required)
+requests>=2.32.0                 # HTTP downloads
+
+# ── Image processing ─────────────────────────────────────────────────────────
+Pillow>=10.3.0                   # PIL — image loading, format checks, contact sheets
+opencv-python-headless>=4.10.0   # OpenCV (headless — no GUI deps needed)
+
+# ── Perceptual hashing ───────────────────────────────────────────────────────
+ImageHash>=4.3.1                 # pHash / dHash for deduplication
+
+# ── ML / tensor ──────────────────────────────────────────────────────────────
+torch>=2.3.0                     # PyTorch (CUDA build installed separately — see note)
+torchvision>=0.18.0
+
+# ── Data / utilities ─────────────────────────────────────────────────────────
+numpy>=1.26.0
+tqdm>=4.66.0                     # progress bars
+scikit-learn>=1.5.0              # cosine_similarity, KMeans for diversity clustering
+matplotlib>=3.9.0                # calibration plots (Stage 4b)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE — PyTorch CUDA installation
+# ─────────────────────────────────────────────────────────────────────────────
+# The plain `torch` wheel above is CPU-only. For NVIDIA GPU support, after
+# running `pip install -r requirements.txt`, run:
+#
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# (Replace cu121 with your CUDA version, e.g. cu118 for CUDA 11.8)
+# Check your CUDA version: nvcc --version  or  nvidia-smi
