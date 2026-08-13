@@ -35,11 +35,11 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # CONFIG — edit these before running
 # ---------------------------------------------------------------------------
-PROJECT_ID: str = "conveyer-kniz0"           # Roboflow project slug
+PROJECT_ID: str = "cnc_milling-wj80d"        # Roboflow project slug
 DATASET_DIR: Path = Path("dataset/train")    # root with per-class subfolders
 
 # Set to None to upload ALL classes, or specify a subset:
-CLASSES_TO_UPLOAD: list[str] | None = None
+CLASSES_TO_UPLOAD: list[str] | None = ["cnc_milling"]
 
 # Train / Valid / Test split ratios (must sum to 1.0)
 SPLIT_RATIOS: dict[str, float] = {"train": 0.70, "valid": 0.20, "test": 0.10}
@@ -47,6 +47,33 @@ SPLIT_RATIOS: dict[str, float] = {"train": 0.70, "valid": 0.20, "test": 0.10}
 RANDOM_SEED: int = 42
 PROJECT_LICENSE: str = "MIT"
 # ---------------------------------------------------------------------------
+
+
+def make_voc_xml(filename: str, width: int, height: int, class_name: str) -> str:
+    """Pascal VOC XML with one full-image bounding box."""
+    return (
+        "<annotation>\n"
+        f"  <folder>{class_name}</folder>\n"
+        f"  <filename>{filename}</filename>\n"
+        "  <size>\n"
+        f"    <width>{width}</width>\n"
+        f"    <height>{height}</height>\n"
+        "    <depth>3</depth>\n"
+        "  </size>\n"
+        "  <object>\n"
+        f"    <name>{class_name}</name>\n"
+        "    <pose>Unspecified</pose>\n"
+        "    <truncated>0</truncated>\n"
+        "    <difficult>0</difficult>\n"
+        "    <bndbox>\n"
+        "      <xmin>1</xmin>\n"
+        "      <ymin>1</ymin>\n"
+        f"      <xmax>{max(width - 1, 2)}</xmax>\n"
+        f"      <ymax>{max(height - 1, 2)}</ymax>\n"
+        "    </bndbox>\n"
+        "  </object>\n"
+        "</annotation>"
+    )
 
 
 def assign_splits(images: list[Path], ratios: dict[str, float], seed: int = 42) -> dict[str, list[Path]]:
@@ -73,6 +100,8 @@ def main() -> None:
     try:
         import roboflow
         from tqdm import tqdm
+        from PIL import Image
+        import tempfile
     except ImportError as e:
         print(f"[ERROR] Missing package: {e}")
         sys.exit(1)
@@ -98,7 +127,7 @@ def main() -> None:
 
     # --- Summary table ---
     print("=" * 68)
-    print("ROBOFLOW UPLOAD — Dataset Summary")
+    print("ROBOFLOW UPLOAD & ANNOTATION — Dataset Summary")
     print("=" * 68)
     print(f"  Project ID   : {PROJECT_ID}")
     print(f"  Dataset Dir  : {DATASET_DIR.resolve()}")
@@ -116,44 +145,58 @@ def main() -> None:
               f"{len(splits['valid']):>7} {len(splits['test']):>6}")
     print("=" * 68)
 
-    confirm = input("\nProceed with upload? [y/N]: ").strip().lower()
-    if confirm != "y":
-        print("Upload cancelled.")
-        sys.exit(0)
+    if "--yes" not in sys.argv:
+        confirm = input("\nProceed with upload? [y/N]: ").strip().lower()
+        if confirm != "y":
+            print("Upload cancelled.")
+            sys.exit(0)
 
     # --- Connect ---
     rf = roboflow.Roboflow(api_key=api_key)
     proj = rf.workspace().project(PROJECT_ID)
 
-    # --- Upload per class with splits ---
-    print("\nStarting upload...\n")
+    # --- Upload per class with annotations and splits ---
+    print("\nStarting upload and annotation...\n")
     total_ok = total_fail = 0
 
-    for cls in target_classes:
-        splits = class_splits[cls]
-        ok = fail = 0
-        print(f"  [{cls}]")
-        for split_name, split_imgs in splits.items():
-            if not split_imgs:
-                continue
-            for img_path in tqdm(split_imgs, desc=f"    {split_name:5}", leave=True):
-                try:
-                    proj.single_upload(
-                        image_path=str(img_path),
-                        split=split_name,
-                        batch_name=cls,
-                        num_retry_uploads=2,
-                    )
-                    ok += 1
-                except Exception as e:
-                    fail += 1
-                    tqdm.write(f"      [FAIL] {img_path.name}: {e}")
-        total_ok += ok
-        total_fail += fail
-        print(f"    => {ok} uploaded, {fail} failed\n")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for cls in target_classes:
+            splits = class_splits[cls]
+            ok = fail = 0
+            print(f"  [{cls}]")
+            for split_name, split_imgs in splits.items():
+                if not split_imgs:
+                    continue
+                for img_path in tqdm(split_imgs, desc=f"    {split_name:5}", leave=True):
+                    try:
+                        w, h = 640, 480
+                        try:
+                            with Image.open(img_path) as im:
+                                w, h = im.size
+                        except Exception:
+                            pass
+
+                        xml_str = make_voc_xml(img_path.name, w, h, cls)
+                        xml_path = Path(tmpdir) / f"{img_path.stem}.xml"
+                        xml_path.write_text(xml_str, encoding="utf-8")
+
+                        proj.single_upload(
+                            image_path=str(img_path),
+                            annotation_path=str(xml_path),
+                            split=split_name,
+                            batch_name=cls,
+                            num_retry_uploads=3,
+                        )
+                        ok += 1
+                    except Exception as e:
+                        fail += 1
+                        tqdm.write(f"      [FAIL] {img_path.name}: {e}")
+            total_ok += ok
+            total_fail += fail
+            print(f"    => {ok} uploaded & annotated, {fail} failed\n")
 
     print("=" * 68)
-    print(f"Upload complete!  {total_ok} uploaded, {total_fail} failed.")
+    print(f"Upload complete!  {total_ok} uploaded & annotated, {total_fail} failed.")
     print(f"  View: https://app.roboflow.com/{PROJECT_ID}")
     print("=" * 68)
 

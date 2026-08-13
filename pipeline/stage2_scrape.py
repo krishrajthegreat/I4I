@@ -175,6 +175,7 @@ def _search_with_retry(
 def scrape_class(
     cls: dict,
     resume: bool = False,
+    cap: int = SCRAPE_CAP_PER_CLASS,
 ) -> dict:
     """
     Scrape images for one class across all 5 query templates.
@@ -187,7 +188,7 @@ def scrape_class(
     class_dir.mkdir(parents=True, exist_ok=True)
 
     already = _existing_count(class_dir)
-    if resume and already >= SCRAPE_CAP_PER_CLASS:
+    if resume and already >= cap:
         print(f"  [{name}] already at cap ({already}), skipping.")
         return {
             "class": name,
@@ -197,7 +198,7 @@ def scrape_class(
             "total_downloaded": 0,
         }
 
-    remaining_cap = SCRAPE_CAP_PER_CLASS - already
+    remaining_cap = cap - already
     # Distribute cap evenly across templates; remainder goes to first template
     per_template_base = remaining_cap // len(QUERY_TEMPLATES)
     per_template_extra = remaining_cap % len(QUERY_TEMPLATES)
@@ -219,9 +220,9 @@ def scrape_class(
             continue
 
         query = template.format(machine=display)
-        fetch_count = min(int(quota * fetch_multiplier) + 5, 100)  # DDGS cap awareness
+        fetch_count = min(max(int(quota * 3), 60), 100)  # DDGS cap awareness
 
-        print(f"    template {t_idx + 1}/5: {query!r} | quota={quota}, fetching up to {fetch_count}")
+        print(f"    template {t_idx + 1}/{len(QUERY_TEMPLATES)}: {query!r} | target={remaining_cap}, fetching up to {fetch_count}")
 
         results = _search_with_retry(query, max_results=fetch_count)
         time.sleep(DDGS_SLEEP_BETWEEN_QUERIES)
@@ -229,8 +230,6 @@ def scrape_class(
         downloaded_this_template = 0
 
         for result in results:
-            if downloaded_this_template >= quota:
-                break
             if total_downloaded >= remaining_cap:
                 break
             if not _is_relevant_result(result):
@@ -296,7 +295,13 @@ def main() -> None:
     parser.add_argument(
         "--resume",
         action="store_true",
-        help="Skip any class that already has >= SCRAPE_CAP_PER_CLASS images.",
+        help="Skip any class that already has >= cap images.",
+    )
+    parser.add_argument(
+        "--cap",
+        type=int,
+        default=SCRAPE_CAP_PER_CLASS,
+        help=f"Maximum total raw images per class (default: {SCRAPE_CAP_PER_CLASS}).",
     )
     args = parser.parse_args()
 
@@ -311,14 +316,14 @@ def main() -> None:
     print("=" * 65)
     print("STAGE 2 -- DuckDuckGo Image Scraper")
     print(f"Classes    : {len(target_classes)}")
-    print(f"Cap/class  : {SCRAPE_CAP_PER_CLASS}")
+    print(f"Cap/class  : {args.cap}")
     print(f"Templates  : {len(QUERY_TEMPLATES)}")
     print(f"Resume mode: {args.resume}")
     print("=" * 65)
 
     results = []
     for cls in tqdm(target_classes, desc="Classes", unit="class", position=0, leave=True):
-        result = scrape_class(cls, resume=args.resume)
+        result = scrape_class(cls, resume=args.resume, cap=args.cap)
         results.append(result)
 
     # Save log
@@ -326,7 +331,7 @@ def main() -> None:
     log_path = LOGS_DIR / "stage2_scrape_log.json"
     log_data = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "cap_per_class": SCRAPE_CAP_PER_CLASS,
+        "cap_per_class": args.cap,
         "results": results,
     }
     with log_path.open("w", encoding="utf-8") as f:

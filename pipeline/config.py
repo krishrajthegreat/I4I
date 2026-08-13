@@ -257,5 +257,12 @@ QUERY_TEMPLATES: list[str] = [
     "professional {machine} machine",
     "{machine} plant setup",
     "commercial {machine} tools",
+    "5 axis {machine}",
+    "vertical {machine}",
+    "horizontal {machine}",
+    "precision {machine}",
+    "{machine} metalworking",
+    "large {machine} machine",
+    "modern {machine} workshop",
 ]
 
