@@ -35,11 +35,11 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # CONFIG — edit these before running
 # ---------------------------------------------------------------------------
-PROJECT_ID: str = "cnc_milling-wj80d"        # Roboflow project slug
+PROJECT_ID: str = "band_table"        # Roboflow project slug
 DATASET_DIR: Path = Path("dataset/train")    # root with per-class subfolders
 
 # Set to None to upload ALL classes, or specify a subset:
-CLASSES_TO_UPLOAD: list[str] | None = ["cnc_milling"]
+CLASSES_TO_UPLOAD: list[str] | None = ["band_saw", "table_saw"]
 
 # Train / Valid / Test split ratios (must sum to 1.0)
 SPLIT_RATIOS: dict[str, float] = {"train": 0.70, "valid": 0.20, "test": 0.10}
