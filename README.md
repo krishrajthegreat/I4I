@@ -89,7 +89,7 @@ python pipeline/upload_polygon_annotations.py --classes lathe band_saw
 
 ### 5. Model Training (Google Colab)
 1. Export the annotated dataset version from Roboflow in **YOLOv8/YOLO26 Segmentation** format.
-2. Train in Colab using the YOLO CLI:
+2. Train in GPU using the YOLO CLI:
    ```bash
    yolo task=segment mode=train model=yolo26m-seg.pt data={dataset.location}/data.yaml epochs=100 patience=20 imgsz=640
    ```
@@ -111,9 +111,8 @@ The pipeline follows a staged progression: **Scrape → Clean → Filter → Ann
 - [x] OpenCLIP coarse & fine semantic filtering with threshold calibration
 - [x] Roboflow serverless workflow with Gemini Vision gating and SAM polygon generation
 - [x] Initial YOLO instance-segmentation training & validation (`train-2/`)
-- [ ] Scaled 21-class model training and hyperparameter tuning on Colab GPU
-- [ ] Collection of real-world factory CCTV & mobile validation benchmark set
-- [ ] *Deferred*: Machine State classification (Running / Idle / Fault) and Zone/Environment models
+- [x] Scaled 21-class model training and hyperparameter tuning on Colab GPU
+- [x] Collection of real-world factory CCTV & mobile validation benchmark set
 
 ---
 
