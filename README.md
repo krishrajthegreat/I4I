@@ -1,4 +1,4 @@
-# Machine Type Classifier — Dataset & Segmentation Pipeline
+# Computer Vision Industrial Machine Type Classifier
 
 An automated computer vision pipeline that scrapes, cleans, filters, and annotates industrial and woodworking machine images to train an instance-segmentation model capable of identifying and outlining machine types in factory and workshop environments.
 
