@@ -34,15 +34,15 @@ import requests
 # CONFIG
 # ---------------------------------------------------------------------------
 API_KEY    = os.environ.get("ROBOFLOW_API_KEY", "").strip()
-WORKSPACE  = "krish-raj-qrke3"
-PROJECT_ID = "conveyer-kniz0"
+WORKSPACE  = "k-krish-raj"
+PROJECT_ID = "full_try"
 DATASET_DIR = Path("dataset/train")
 
 # Classes to annotate. Set to None to annotate ALL class folders.
-CLASSES_TO_ANNOTATE: list | None = ["conveyor"]
+CLASSES_TO_ANNOTATE: list | None = None
 
 # Same split ratios + seed as upload_to_roboflow.py
-SPLIT_RATIOS  = {"train": 0.70, "valid": 0.20, "test": 0.10}
+SPLIT_RATIOS  = {"train": 0.70, "valid": 0.15, "test": 0.15}
 RANDOM_SEED   = 42
 # ---------------------------------------------------------------------------
 

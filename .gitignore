@@ -7,6 +7,8 @@ venv/
 dataset/
 good_bad/
 project.tm*/
+train-2/
+*.pt
 
 # Logs and scratch files
 logs/
