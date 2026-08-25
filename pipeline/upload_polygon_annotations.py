@@ -117,7 +117,7 @@ def process_and_upload_image(
         # Accept known exact synonym variations (e.g. drill_press -> drilling)
         synonyms = {
             "drilling": {"drilling", "drill_press", "drill press"},
-            "cnc_milling": {"cnc_milling", "cnc_machine"},
+            "cnc_milling": {"cnc_milling"},
             "sanding_machines": {"sanding_machines", "sander", "belt_sander"},
         }
         valid_syns = synonyms.get(expected_class, {expected_class})

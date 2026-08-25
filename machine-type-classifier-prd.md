@@ -21,7 +21,7 @@ This is a real build project, not a prototype or hackathon deliverable.
 ## 2. Machine Type — Class List
 
 **Core industrial machines (11):**
-1. CNC Machine
+1. CNC Milling
 2. Lathe
 3. Milling
 4. Drilling
@@ -60,7 +60,7 @@ This is a real build project, not a prototype or hackathon deliverable.
 These groups are visually similar enough that text-based filtering alone is expected to be unreliable between them, and are the priority candidates for image-to-image (fine) filtering:
 - Cutting machines: table saw / band saw / miter saw / panel saw
 - Surfacing and shaping: planer / jointer / spindle moulder / wood lathe
-- CNC machine / milling / drilling / CNC router (functional and visual overlap)
+- CNC milling / milling / drilling / CNC router (functional and visual overlap)
 
 ---
 
