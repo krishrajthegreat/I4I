@@ -17,7 +17,6 @@ ROOT = Path(__file__).resolve().parent.parent
 # Directory layout (matches PRD Section 5)
 # ---------------------------------------------------------------------------
 DATASET_TRAIN_DIR       = ROOT / "dataset" / "train"
-DATASET_VAL_DIR         = ROOT / "dataset" / "real_validation"
 REFERENCE_IMAGES_DIR    = ROOT / "reference_images"
 LOGS_DIR                = ROOT / "logs"
 
