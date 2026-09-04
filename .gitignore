@@ -18,6 +18,7 @@ scratch/
 # Environment / secrets — never commit API keys
 .env
 .env.*
+!.env.example
 
 # Python cache & artifacts
 __pycache__/

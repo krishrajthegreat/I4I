@@ -14,6 +14,7 @@ Key improvements:
 
 from __future__ import annotations
 
+import argparse
 import io
 import json
 import sys
@@ -278,6 +279,26 @@ CLASS_QUERIES: dict[str, list[str]] = {
         "h frame hydraulic press machine",
         "hydraulic press metalworking machine",
     ],
+    "fire_extinguisher": [
+        "fire extinguisher industrial safety",
+        "red fire extinguisher wall mount factory",
+        "fire extinguisher machine shop safety",
+        "commercial fire extinguisher equipment",
+        "industrial fire extinguisher workshop",
+        "co2 fire extinguisher factory safety",
+        "dry chemical fire extinguisher industrial",
+        "fire extinguisher inspection safety station",
+    ],
+    "crane": [
+        "industrial overhead crane machine",
+        "gantry crane machine factory",
+        "bridge crane industrial workshop",
+        "mobile hydraulic crane machine",
+        "tower crane construction site photo",
+        "heavy duty industrial crane equipment",
+        "factory overhead hoist crane machine",
+        "jib crane machine workshop",
+    ],
 }
 
 # Default fallback for any class not in the map
@@ -430,8 +451,23 @@ def _run_pipeline_stages(name: str, model, preprocess, tokenizer, device) -> int
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Batch Top-Up Pipeline")
+    parser.add_argument(
+        "--classes",
+        nargs="+",
+        default=None,
+        help="Specific class slugs to process (e.g. fire_extinguisher crane)",
+    )
+    args = parser.parse_args()
+
+    target_classes = CLASSES
+    if args.classes:
+        allowed = set(args.classes)
+        target_classes = [c for c in CLASSES if c["name"] in allowed]
+
     print("=" * 75, flush=True)
     print(f"BATCH TOP-UP PIPELINE  |  Target: >= {TARGET} clean images per class", flush=True)
+    print(f"Processing ({len(target_classes)}) classes: {[c['name'] for c in target_classes]}", flush=True)
     print("=" * 75, flush=True)
 
     print("\nLoading OpenCLIP model...", flush=True)
@@ -439,7 +475,7 @@ def main():
 
     results_summary: dict[str, dict] = {}
 
-    for cls in CLASSES:
+    for cls in target_classes:
         name = cls["name"]
         print(f"\n{'=' * 75}", flush=True)
         print(f"ACTIVE CLASS: [{name}]", flush=True)
@@ -450,7 +486,8 @@ def main():
         print(f"  [{name}] Baseline post-Stage-5 count: {post_s5} / {TARGET}", flush=True)
 
         iteration = 0
-        while post_s5 < TARGET:
+        max_iters = 5
+        while post_s5 < TARGET and iteration < max_iters:
             iteration += 1
             shortfall = TARGET - post_s5
             # Request 4x the shortfall so even a 25% pass-rate through CLIP gives enough

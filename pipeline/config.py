@@ -221,6 +221,19 @@ CLASSES: list[dict] = [
         "confusable": True,
         "cluster": "cnc_group",
     },
+    # ── Safety and material handling ─────────────────────────────────────────
+    {
+        "name": "fire_extinguisher",
+        "display": "fire extinguisher",
+        "confusable": False,
+        "cluster": None,
+    },
+    {
+        "name": "crane",
+        "display": "industrial crane",
+        "confusable": False,
+        "cluster": None,
+    },
 ]
 
 # ---------------------------------------------------------------------------
